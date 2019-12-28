@@ -1,0 +1,20 @@
+-Pair a list of edges with a list of polygons
+-For each polygon, find the edges parallel to the original edge
+-Find the angle made by these edges with the x axis, and rotate these edges by the opposite
+of this angle
+-After rotating, find the y separation, and the maximum left coordinate and minimum right
+coordinate
+-Use these coordinates as the bounds for a small-scale lattice
+-In addition to the newly created lattice, add edges according to the following rules:
+	-If the minimum x coordinate of the lower edge is less than the left x coordinate
+	used to generate the lattice, add an edge extending from the minimum x coordinate
+	to the left x coordinate
+	-If the maximum x coordinate of the lower edge is greater than the right x
+	coordinate used to make the lattice, add an edge from the right x coordinate
+	to the maximum x coordinate
+	-Repeat these considerations for the upper edge
+	-Add these edges, as well as left and right edges of the lattice, to a set of
+	edges to be used in triangulating junctions of large-scale edges
+-Apply the reverse of the initial rotation to all edges created
+-Add the lattice edges to the general pool of small-scale edges, and add the bounding
+edges for triangulation to a separate pool

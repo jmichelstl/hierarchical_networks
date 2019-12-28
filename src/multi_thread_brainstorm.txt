@@ -1,0 +1,16 @@
+Multithreading the force loop:
+
+-Iterate over the neighbor map and count the total number of entries
+-Obtain the desired number of threads
+-Divide the total number of entries by n to obtain the target number for each thread
+-If adding a list to a thread would not exceed the target number of neighbors, add the
+whole list
+-If adding the lsit would exceed the number of neighbors, just add part of the list
+-Keep track of the index of the first list, and the index at which to begin
+-Also keep track of the last list index, and the last index within that list the thread should process
+-Once one thread is at capacity, move to the next one
+
+When a worker thread is invoked:
+-Pass the index to the first neighbor list, and the first index within that list
+-Pass the index to the last neighbor list, and the last index within that list
+

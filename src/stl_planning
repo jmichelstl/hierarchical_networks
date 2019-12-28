@@ -1,0 +1,18 @@
+-Read network
+
+-Make ordered groups of points to define polygons
+
+-Process each polygon to find a point in its interior, as well as normal vectors
+
+-Call Triangle to produce a triangulation for the top and bottom
+
+-Finding holes and normals:
+	For the first edge in a polygon:
+		-Find change in x and y from the first to the second point
+		-Find the midpoint of the line segment, m
+		-Calculate two points: m + (-dy, dx) and m - (-dy, dx)
+		-Determine which, if either, of these points is in the polygon
+		-If neither is inside, halve dx and dy, and try again
+		-When a match is found, note wheter m + (-dy, dx) or m - (-dy, dx)
+		is the proper convention
+		-Record the interior point as a hole

@@ -1,0 +1,37 @@
+Plan for Union Find:
+
+-Data:
+	-Array to hold root indices
+	-Array to hold sizes of trees
+
+public functions
+
+-Constructor
+	-Takes no arguments, initializes empty arrays for indices and tree sizes
+
+-union
+	-Joins two indices
+	-Makes sure both are non-negative
+	-If either index is greater than the largest index currently stored, expand the
+	tables of roots and tree sizes up to that index
+	-Call find() on both indices
+	-Look up size of tree for the root of each index
+	-Make the root with the larger tree the parent of the root with the smaller tree
+	-Add the size of the tree for the subordiate root to the size of the tree of the
+	dominate root
+
+-find
+	-Make sure indices are in bounds
+	-Call root on both indices
+	-Return true if the roots are equal
+	-Return false otherwise
+
+private functions
+
+-root
+	-Make sure the index is in bounds
+	while(id[i] != i){
+		id[i] = id[id[i]];
+		i = id[i];
+	}
+	return i;
