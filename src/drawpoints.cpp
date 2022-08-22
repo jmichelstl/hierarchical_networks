@@ -347,6 +347,8 @@ vector<Edge> true_random(vector<Edge> original, double toKeep){
         remaining.push_back(e);
         if(++count == numNeeded) return remaining;
     }
+	
+    return remaining;
 }
 
 vector<Edge> randremove(vector<Edge> original, set<Point> points){
@@ -388,6 +390,8 @@ vector<Edge> randremove(vector<Edge> original, set<Point> points){
         default:
             break;
     }
+	
+    return remaining;
 }
 
 int numinset(vector<Edge> edges, set<Point> points){
