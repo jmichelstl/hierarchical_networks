@@ -376,6 +376,8 @@ char get_choice(string message, map<char, string> c_map, vector<char> choices){
             cerr << "Choice \"" << choice << "\"" << "not recognized.\n";
         }
     }while(!valid);
+    
+    return choice;
 }
 
 //Functions to sort edges prioritizing alternatively the highest or lowest
