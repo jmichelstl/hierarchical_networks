@@ -25,6 +25,7 @@ uses randomness but also guarantees that the network remains fully connected.
 #include <float.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include <tuple>
 
 using namespace std;
 
@@ -35,6 +36,10 @@ using namespace std;
 #define BIG_SLOPE 1E10
 #define INF 1E12
 */
+
+//Small structure for defining edges in the "compact" mode of reporting
+//networks
+typedef tuple<int, int, short int> cedge;
 
 struct NetData{
 
@@ -85,7 +90,59 @@ void print_edges(vector<Edge> edges, string message){
             fprintf(out, "%10.8lf %10.8lf \n%10.8lf %10.8lf \n\n", e.p1.x, e.p1.y, e.p2.x, e.p2.y);
         }
 
-       fclose(out);
+        fclose(out);
+    }
+}
+
+void print_edges_compact(vector<Edge> edges, string message){    
+    string nextline, filename;
+    FILE *out;
+    vector<string> tokens;
+    unordered_map<Point, int> pmap;
+    vector<Point> unique_points;
+    vector<cedge> compact_edges;
+    int pindex = 0;
+    double minx = FLT_MAX, maxx = FLT_MIN;
+
+    cout << message;
+    getline(cin, nextline);
+    tokens = split(nextline, ' ');
+    if(tokens.size() > 0){
+
+        //Make a map from unique points to indices
+	for(Edge e : edges){
+            if(pmap.find(e.p1) == pmap.end()){
+                pmap.insert(make_pair(e.p1, pindex++));
+		unique_points.push_back(e.p1);
+		minx = e.p1.x < minx ? e.p1.x : minx;
+		maxx = e.p1.x > maxx ? e.p1.x : maxx;
+	    }
+
+            if(pmap.find(e.p2) == pmap.end()){
+                pmap.insert(make_pair(e.p2, pindex++));
+		unique_points.push_back(e.p2);
+		minx = e.p2.x < minx ? e.p2.x : minx;
+		maxx = e.p2.x > maxx ? e.p2.x : maxx;
+	    }
+
+	    compact_edges.push_back(make_tuple(pmap[e.p1],pmap[e.p2],0));
+	}
+
+
+        filename = tokens[0];
+        out = fopen(filename.c_str(), "w");
+
+	fprintf(out, "%ld %ld %lf\n", unique_points.size(), compact_edges.size(), maxx - minx);
+
+        for(Point p : unique_points){
+            fprintf(out, "%10.8lf %10.8lf\n", p.x, p.y);
+        }
+
+	for(cedge next_edge : compact_edges){
+	    fprintf(out, "%d %d %d\n", get<0>(next_edge), get<1>(next_edge), get<2>(next_edge));
+	}
+
+        fclose(out);
     }
 }
 
@@ -347,7 +404,7 @@ vector<Edge> true_random(vector<Edge> original, double toKeep){
         remaining.push_back(e);
         if(++count == numNeeded) return remaining;
     }
-	
+
     return remaining;
 }
 
@@ -390,7 +447,7 @@ vector<Edge> randremove(vector<Edge> original, set<Point> points){
         default:
             break;
     }
-	
+
     return remaining;
 }
 
@@ -530,7 +587,7 @@ vector<Edge> add_thickness(vector<Edge> current, double thickness, vector<PolyDa
         ang1 = atan2(p2.y-p1.y,p2.x-p1.x);
         if(ang1 < 0) ang1 += 2*M_PI;
         ang2 = ang1 < M_PI ? ang1 + M_PI : ang1 - M_PI;
-        slope = (p2.y - p1.y)/(p2.x - p1.x); 
+        slope = abs(p2.x-p1.x)>FLOAT_TOL ? (p2.y-p1.y)/(p2.x-p1.x) : BIG_SLOPE; 
         p1fflag = false;
         p2fflag = false;
         p3fflag = false;
@@ -539,13 +596,13 @@ vector<Edge> add_thickness(vector<Edge> current, double thickness, vector<PolyDa
         p2_is_end = false;
 
         getangles(angmap[p1], ang1, low, high);
-        if(ang1 == low){
+        if(abs(ang1 - low) < FLOAT_TOL){
             p1_is_end = true;
             p1f = Point(p1.x + hwidth*sin(ang1), p1.y - hwidth*cos(ang1));
             p3f = Point(p1.x - hwidth*sin(ang1), p1.y + hwidth*cos(ang1));
             
-            if((p1.y == ymin || p1.y == ymax) && slope != 0){
-                y_ext = p1.y == ymin ? ylow : yhigh;
+            if((abs(p1.y - ymin) < FLOAT_TOL || abs(p1.y - ymax) < FLOAT_TOL) && abs(slope) >= FLOAT_TOL){
+                y_ext = abs(p1.y - ymin) < FLOAT_TOL ? ylow : yhigh;
                 flush_with_edge(p1f, slope, y_ext);
                 flush_with_edge(p3f, slope, y_ext);
             }
@@ -559,13 +616,13 @@ vector<Edge> add_thickness(vector<Edge> current, double thickness, vector<PolyDa
             p3f = Point(p1.x + dx, p1.y + dy);
 
             if((p1f.y < ylow - FLOAT_TOL || p1f.y > yhigh + FLOAT_TOL) && level){
-                y_ext = p1.y == ymin ? ylow : yhigh;
+                y_ext = abs(p1.y - ymin) < FLOAT_TOL ? ylow : yhigh;
                 flush_with_edge(p1f, slope, y_ext);
                 p1fb = Point(p1.x, y_ext);
                 p1fflag = true;
             }
             if((p3f.y < ylow - FLOAT_TOL || p3f.y > yhigh + FLOAT_TOL) && level){
-                y_ext = p1.y == ymin ? ylow : yhigh;
+                y_ext = abs(p1.y - ymin) < FLOAT_TOL ? ylow : yhigh;
                 flush_with_edge(p3f, slope, y_ext);
                 p3fb = Point(p1.x, y_ext);
                 p3fflag = true;
@@ -573,13 +630,13 @@ vector<Edge> add_thickness(vector<Edge> current, double thickness, vector<PolyDa
         }
  
         getangles(angmap[p2], ang2, low, high);
-        if(ang2 == low){
+        if(abs(ang2 - low) < FLOAT_TOL){
             p2_is_end = true;
             p2f = Point(p2.x + hwidth*sin(ang1), p2.y - hwidth*cos(ang1));
             p4f = Point(p2.x - hwidth*sin(ang1), p2.y + hwidth*cos(ang1));
 
-            if((p2.y == ymin || p2.y == ymax) && slope != 0){
-                y_ext = p2.y == ymin ? ylow : yhigh;
+            if((abs(p2.y - ymin) < FLOAT_TOL || abs(p2.y - ymax) < FLOAT_TOL) && abs(slope) >= FLOAT_TOL){
+                y_ext = abs(p2.y - ymin) < FLOAT_TOL ? ylow : yhigh;
                 flush_with_edge(p2f, slope, y_ext);
                 flush_with_edge(p4f, slope, y_ext);
             }
@@ -593,14 +650,14 @@ vector<Edge> add_thickness(vector<Edge> current, double thickness, vector<PolyDa
             p4f = Point(p2.x + dx, p2.y + dy);
 
             if((p2f.y < ylow - FLOAT_TOL || p2f.y > yhigh + FLOAT_TOL) && level){
-                y_ext = p2.y == ymin ? ylow : yhigh;
+                y_ext = abs(p2.y - ymin) < FLOAT_TOL ? ylow : yhigh;
                 flush_with_edge(p2f, slope, y_ext);
                 p2fb = Point(p2.x, y_ext);
                 p2fflag = true;
             }
             if((p4f.y < ylow - FLOAT_TOL || p4f.y > yhigh + FLOAT_TOL) && level){
                 //cerr << "Current p4f: " << p4f.x << "\t" << p4f.y << "\n";
-                y_ext = p2.y == ymin ? ylow : yhigh;
+                y_ext = abs(p2.y - ymin) < FLOAT_TOL ? ylow : yhigh;
                 flush_with_edge(p4f, slope, y_ext);
                 p4fb = Point(p2.x, y_ext);
                 p4fflag = true;
@@ -1834,7 +1891,7 @@ vector<Edge> edge_hierarchy(vector<double> bounds, int polyflag, bool getAlign, 
     bool displacement = false;
     int iter;
     double length, alignment;
-    FILE *align_report;
+    FILE *align_report, *poly_report;
     string response;
 
     loadNetStack(netStack);
@@ -1866,18 +1923,31 @@ vector<Edge> edge_hierarchy(vector<double> bounds, int polyflag, bool getAlign, 
     }
 
     if(polyflag == 1){
-        for(iter = 0; iter < pdat.size(); iter++){
-            if(displace){
-                fprintf(stderr, "%lf\t%lf\n",backup[iter].p1.x,backup[iter].p1.y);
-                fprintf(stderr, "%lf\t%lf\n\n",backup[iter].p2.x,backup[iter].p2.y);
+
+	do{
+		cout << "Enter the name of the polygon file: ";
+		getline(cin, response);
+	}while(response.compare("") == 0);
+
+	poly_report = fopen(response.c_str(), "w");
+
+	if(poly_report != NULL){
+            for(iter = 0; iter < pdat.size(); iter++){
+                if(displacement){
+                    fprintf(poly_report, "%lf\t%lf\n",backup[iter].p1.x,backup[iter].p1.y);
+                    fprintf(poly_report, "%lf\t%lf\n\n",backup[iter].p2.x,backup[iter].p2.y);
+                }
+
+            	PolyData pdatum = pdat[iter];
+            	for(Edge pedge : pdatum.polyEdges){
+		    fprintf(poly_report, "%lf\t%lf\n", pedge.p1.x, pedge.p1.y);
+                    fprintf(poly_report, "%lf\t%lf\n\n", pedge.p2.x, pedge.p2.y);
+            	}
             }
-        //for(PolyData pdatum : pdat){
-            PolyData pdatum = pdat[iter];
-            for(Edge pedge : pdatum.polyEdges){
-                fprintf(stderr, "%lf\t%lf\n", pedge.p1.x, pedge.p1.y);
-                fprintf(stderr, "%lf\t%lf\n\n", pedge.p2.x, pedge.p2.y);
-            }
-        }
+
+	    fclose(poly_report);
+	}
+	else cerr << "The file could not be opened.\n";
     }
 
     if(yesno("Report top network?")){
@@ -1951,7 +2021,7 @@ vector<Edge> edge_hierarchy(vector<double> bounds, int polyflag, bool getAlign, 
         //cout << "Check5\n";
     }
 
-    cout << "There are " << tedges.size() << " edges.\n";
+    //cout << "There are " << tedges.size() << " edges.\n";
     return tedges;
 }
 
@@ -1966,18 +2036,21 @@ int main(int argc, char **argv){
     string filename;
     FILE *out, *ranfile;
     double width;
-    bool flag, success = false, align = false, connect = true;
+    bool flag, success = false, align = false, connect = true, compact = false;
     int c, polyflag = 0;
     unsigned seed;
     char num_string[11];
 
     opterr = 0;
 
-    while((c = getopt(argc, argv, "adp")) != -1){
+    while((c = getopt(argc, argv, "acdp")) != -1){
         switch(c) {
             case 'a':
                 align = true;
                 break;
+            case 'c':
+		compact = true;
+		break;
             case 'd':
                 connect = false;
                 break;
@@ -2019,7 +2092,12 @@ int main(int argc, char **argv){
 
     edges = edge_hierarchy(bounds, polyflag, align, connect);
 
-    print_edges(edges, "Enter a file name for output or enter to decline: ");
+    if(! compact){
+        print_edges(edges, "Enter a file name for output or enter to decline: ");
+    }
+    else{
+	print_edges_compact(edges, "Enter a new name for output or enter to decline: ");
+    }
 
     return 0;
 }
