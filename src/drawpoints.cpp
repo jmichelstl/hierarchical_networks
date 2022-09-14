@@ -26,6 +26,7 @@ uses randomness but also guarantees that the network remains fully connected.
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <tuple>
+#include <time.h>
 
 using namespace std;
 
@@ -76,27 +77,41 @@ struct MST_JOB{
 
 void print_edges(vector<Edge> edges, string message){    
     string nextline, filename;
-    FILE *out;
+    FILE *out = NULL;
     vector<string> tokens;
 
-    cout << message;
-    getline(cin, nextline);
-    tokens = split(nextline, ' ');
-    if(tokens.size() > 0){
-        filename = tokens[0];
-        out = fopen(filename.c_str(), "w");
+    while(out == NULL){
+        cout << message;
+        getline(cin, nextline);
+        tokens = split(nextline, ' ');
 
-        for(Edge e : edges){
-            fprintf(out, "%10.8lf %10.8lf \n%10.8lf %10.8lf \n\n", e.p1.x, e.p1.y, e.p2.x, e.p2.y);
+        if(tokens.size() > 0){
+            filename = tokens[0];
+            out = fopen(filename.c_str(), "w");
+            if(out == NULL){
+                if(! yesno("The file could not be opened. Try again?")){
+		    return;
+		}
+            }
         }
 
-        fclose(out);
+	else{
+	    if(! yesno("No file name was read. Try again?")){
+                return;
+            }
+	}
     }
+
+    for(Edge e : edges){
+        fprintf(out, "%10.8lf %10.8lf \n%10.8lf %10.8lf \n\n", e.p1.x, e.p1.y, e.p2.x, e.p2.y);
+    }
+
+    fclose(out);
 }
 
 void print_edges_compact(vector<Edge> edges, string message){    
     string nextline, filename;
-    FILE *out;
+    FILE *out = NULL;
     vector<string> tokens;
     unordered_map<Point, int> pmap;
     vector<Point> unique_points;
@@ -104,46 +119,57 @@ void print_edges_compact(vector<Edge> edges, string message){
     int pindex = 0;
     double minx = FLT_MAX, maxx = FLT_MIN;
 
-    cout << message;
-    getline(cin, nextline);
-    tokens = split(nextline, ' ');
-    if(tokens.size() > 0){
-
-        //Make a map from unique points to indices
-	for(Edge e : edges){
-            if(pmap.find(e.p1) == pmap.end()){
-                pmap.insert(make_pair(e.p1, pindex++));
-		unique_points.push_back(e.p1);
-		minx = e.p1.x < minx ? e.p1.x : minx;
-		maxx = e.p1.x > maxx ? e.p1.x : maxx;
-	    }
-
-            if(pmap.find(e.p2) == pmap.end()){
-                pmap.insert(make_pair(e.p2, pindex++));
-		unique_points.push_back(e.p2);
-		minx = e.p2.x < minx ? e.p2.x : minx;
-		maxx = e.p2.x > maxx ? e.p2.x : maxx;
-	    }
-
-	    compact_edges.push_back(make_tuple(pmap[e.p1],pmap[e.p2],0));
+    while(out == NULL){
+        cout << message;
+        getline(cin, nextline);
+        tokens = split(nextline, ' ');
+	if(tokens.size() > 0){
+            filename = tokens[0];
+            out = fopen(filename.c_str(), "w");
+            if(out == NULL){
+                if(! yesno("The file could not be opened. Try again?")){
+		    return;
+		}
+            }
 	}
-
-
-        filename = tokens[0];
-        out = fopen(filename.c_str(), "w");
-
-	fprintf(out, "%ld %ld %lf\n", unique_points.size(), compact_edges.size(), maxx - minx);
-
-        for(Point p : unique_points){
-            fprintf(out, "%10.8lf %10.8lf\n", p.x, p.y);
+	else{
+	    if(! yesno("No file name was read. Try again?")){
+                return;
+            }
         }
+    }
 
-	for(cedge next_edge : compact_edges){
-	    fprintf(out, "%d %d %d\n", get<0>(next_edge), get<1>(next_edge), get<2>(next_edge));
+    //Make a map from unique points to indices
+    for(Edge e : edges){
+        if(pmap.find(e.p1) == pmap.end()){
+            pmap.insert(make_pair(e.p1, pindex++));
+ 	    unique_points.push_back(e.p1);
+	    minx = e.p1.x < minx ? e.p1.x : minx;
+	    maxx = e.p1.x > maxx ? e.p1.x : maxx;
 	}
 
-        fclose(out);
+        if(pmap.find(e.p2) == pmap.end()){
+            pmap.insert(make_pair(e.p2, pindex++));
+            unique_points.push_back(e.p2);
+	    minx = e.p2.x < minx ? e.p2.x : minx;
+	    maxx = e.p2.x > maxx ? e.p2.x : maxx;
+	}
+
+	compact_edges.push_back(make_tuple(pmap[e.p1],pmap[e.p2],0));
     }
+
+
+    fprintf(out, "%ld %ld %lf\n", unique_points.size(), compact_edges.size(), maxx - minx);
+
+    for(Point p : unique_points){
+        fprintf(out, "%10.8lf %10.8lf\n", p.x, p.y);
+    }
+
+    for(cedge next_edge : compact_edges){
+        fprintf(out, "%d %d %d\n", get<0>(next_edge), get<1>(next_edge), get<2>(next_edge));
+    }
+
+    fclose(out);
 }
 
 vector<Edge> makeedges(vector<vector<double>> rules, map<int,vector<vector<double>>> nns, vector<double> bnds){
@@ -2040,6 +2066,7 @@ int main(int argc, char **argv){
     int c, polyflag = 0;
     unsigned seed;
     char num_string[11];
+    time_t the_time;
 
     opterr = 0;
 
@@ -2084,19 +2111,25 @@ int main(int argc, char **argv){
     }
 
     ranfile = fopen("/dev/urandom", "r");
-    fread(&seed, sizeof(unsigned), 1, ranfile);
+    numRead = fread(&seed, sizeof(unsigned), 1, ranfile);
     fclose(ranfile);
-    sprintf(num_string, "%u", seed);
+    if(numRead > 0){
+        sprintf(num_string, "%u", seed);
+    }
+    else{
+        time(&the_time);
+	sprintf(num_string, "%u", (unsigned int) the_time);
+    }
     setenv("GSL_RNG_SEED", num_string, 1);
     gsl_rng_env_setup();
 
     edges = edge_hierarchy(bounds, polyflag, align, connect);
 
     if(! compact){
-        print_edges(edges, "Enter a file name for output or enter to decline: ");
+        print_edges(edges, "Enter a file name for output: ");
     }
     else{
-	print_edges_compact(edges, "Enter a new name for output or enter to decline: ");
+	print_edges_compact(edges, "Enter a file name for output: ");
     }
 
     return 0;
